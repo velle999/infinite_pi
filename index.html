@@ -2,27 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pi to Infinity (Well, Almost)</title>
+  <title>Infinite Pi Digits Generator</title>
   <style>
     body { font-family: monospace; background: #222; color: #0f0; padding: 2em; }
     #digits { word-break: break-all; font-size: 1.2em; }
-    button { margin-top: 1em; padding: 0.5em 1em; }
   </style>
 </head>
 <body>
   <h1>Pi Digits Generator</h1>
-  <div id="digits">3.</div>
-  <button onclick="more()">More digits!</button>
+  <div id="digits"></div>
   <script>
-let q = 1n, r = 0n, t = 1n, k = 1n, n = 3n, l = 3n;
-function nextDigit() {
-    if (4n*q + r - t < n*t) {
+    // Pi spigot with BigInt
+    let q = 1n, r = 0n, t = 1n, k = 1n, n = 3n, l = 3n;
+    let started = false;
+
+    function nextDigit() {
+      if (4n*q + r - t < n*t) {
         let digit = n;
         r = 10n * (r - n * t);
         n = ((10n * (3n*q + r)) / t) - 10n * n;
         q = 10n * q;
         return digit.toString();
-    } else {
+      } else {
         r = (2n*q + r) * l;
         n = (q*(7n*k + 2n) + r*l) / (t*l);
         q = q * k;
@@ -30,24 +31,33 @@ function nextDigit() {
         l = l + 2n;
         k = k + 1n;
         return nextDigit();
+      }
     }
-}
 
-let started = false;
-function more(count=20) {
-    let digits = '';
-    if (!started) {
-        // Print the 3 and decimal point
-        digits += nextDigit() + '.';
+    // Start generating digits on load
+    const digitsDiv = document.getElementById('digits');
+    let printed = 0;
+
+    function printDigitsChunk(chunkSize = 50) {
+      let chunk = '';
+      if (!started) {
+        chunk += nextDigit() + '.';
         started = true;
-        count--;
+        printed++;
+      }
+      for (let i = 0; i < chunkSize; i++) {
+        chunk += nextDigit();
+        printed++;
+      }
+      digitsDiv.textContent += chunk;
+
+      // Keep going forever!
+      setTimeout(() => printDigitsChunk(chunkSize), 0);
     }
-    for (let i = 0; i < count; i++) {
-        digits += nextDigit();
-    }
-    document.getElementById('digits').textContent += digits;
-}
-</script>
+
+    // Go!
+    printDigitsChunk(50);
+  </script>
 </body>
 </html>
 
