@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pi to Infinity (Well, Almost)</title>
+  <style>
+    body { font-family: monospace; background: #222; color: #0f0; padding: 2em; }
+    #digits { word-break: break-all; font-size: 1.2em; }
+    button { margin-top: 1em; padding: 0.5em 1em; }
+  </style>
+</head>
+<body>
+  <h1>Pi Digits Generator</h1>
+  <div id="digits">3.</div>
+  <button onclick="more()">More digits!</button>
+  <script>
+    // Spigot algorithm in JS!
+    let q=1, r=0, t=1, k=1, n=3, l=3;
+    let started = false;
+    function nextDigit() {
+      if (4*q + r - t < n*t) {
+        let digit = n;
+        r = 10*(r - n*t);
+        n = ((10*(3*q + r)) / t | 0) - 10*n;
+        q = 10*q;
+        return digit;
+      } else {
+        r = (2*q + r)*l;
+        n = ((q*(7*k + 2) + r*l) / (t*l) | 0);
+        q = q*k;
+        t = t*l;
+        l = l+2;
+        k = k+1;
+        return nextDigit(); // Try again!
+      }
+    }
+    function more(count=20) {
+      let digits = '';
+      for (let i = 0; i < count; i++) {
+        digits += nextDigit();
+      }
+      document.getElementById('digits').textContent += digits;
+    }
+    // Optionally, add more digits every second automatically:
+    // setInterval(() => more(1), 100);
+  </script>
+</body>
+</html>
+
