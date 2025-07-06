@@ -12,25 +12,27 @@
   <h1>Pi Digits Generator</h1>
   <div id="digits"></div>
   <script>
-    // Pi spigot with BigInt
+    // Pi spigot with BigInt, **NO RECURSION**
     let q = 1n, r = 0n, t = 1n, k = 1n, n = 3n, l = 3n;
     let started = false;
 
-    function nextDigit() {
-      if (4n*q + r - t < n*t) {
-        let digit = n;
-        r = 10n * (r - n * t);
-        n = ((10n * (3n*q + r)) / t) - 10n * n;
-        q = 10n * q;
-        return digit.toString();
-      } else {
-        r = (2n*q + r) * l;
-        n = (q*(7n*k + 2n) + r*l) / (t*l);
-        q = q * k;
-        t = t * l;
-        l = l + 2n;
-        k = k + 1n;
-        return nextDigit();
+    function nextDigitLoop() {
+      while (true) {
+        if (4n*q + r - t < n*t) {
+          let digit = n;
+          r = 10n * (r - n * t);
+          n = ((10n * (3n*q + r)) / t) - 10n * n;
+          q = 10n * q;
+          return digit.toString();
+        } else {
+          r = (2n*q + r)*l;
+          n = (q*(7n*k + 2n) + r*l) / (t*l);
+          q = q*k;
+          t = t*l;
+          l = l+2n;
+          k = k+1n;
+          // No recursion! Just keep looping.
+        }
       }
     }
 
@@ -41,12 +43,12 @@
     function printDigitsChunk(chunkSize = 50) {
       let chunk = '';
       if (!started) {
-        chunk += nextDigit() + '.';
+        chunk += nextDigitLoop() + '.';
         started = true;
         printed++;
       }
       for (let i = 0; i < chunkSize; i++) {
-        chunk += nextDigit();
+        chunk += nextDigitLoop();
         printed++;
       }
       digitsDiv.textContent += chunk;
