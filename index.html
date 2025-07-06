@@ -19,41 +19,14 @@
   </style>
 </head>
 <body>
-  <div id="header">π &gt;&gt; live Machin’s formula</div>
+  <div id="header">π &gt;&gt; infinite live Machin’s formula</div>
   <pre id="digits">3.</pre>
   <script>
-    // Measure character width for accurate wrapping
-    let charWidth = 0;
-    function measureCharWidth() {
-      const span = document.createElement('span');
-      span.textContent = '0';
-      span.style.font = getComputedStyle(document.body).font;
-      span.style.position = 'absolute'; span.style.visibility = 'hidden';
-      document.body.appendChild(span);
-      const w = span.getBoundingClientRect().width;
-      document.body.removeChild(span);
-      return w;
-    }
-
-    function updateGrid() {
-      if (!charWidth) charWidth = measureCharWidth();
-      const cols = Math.floor(window.innerWidth / charWidth);
-      const headerH = document.getElementById('header').clientHeight;
-      const lineH = parseFloat(getComputedStyle(document.body).lineHeight);
-      const rows = Math.floor((window.innerHeight - headerH) / lineH) - 1;
-      return { cols, rows };
-    }
-    let grid = updateGrid();
-    window.addEventListener('resize', () => grid = updateGrid());
-
-    const DIGITS = 1000;
-    const INTERVAL = 50;
-    const digitsEl = document.getElementById('digits');
-
-    // Compute π via Machin's formula with decimal.js
-    Decimal.set({ precision: DIGITS + 10 });
+    // Precompute π to a string via decimal.js and Machin’s formula
+    const DIGITS = 10000;
+    Decimal.set({ precision: DIGITS + 20 });
     const one = new Decimal(1);
-    const arctan = x => {
+    function arctan(x) {
       let term = one.div(x), sum = term;
       let k = 1;
       while (term.abs().gt(Decimal.pow(10, -DIGITS - 5))) {
@@ -62,31 +35,69 @@
         k++;
       }
       return sum;
-    };
-    const piDecimal = arctan(new Decimal(5)).times(16)
-                     .minus(arctan(new Decimal(239)).times(4));
-    const piStr = piDecimal.toFixed(DIGITS).slice(0, DIGITS + 2);
+    }
+    const piDec = arctan(new Decimal(5)).times(16)
+                   .minus(arctan(new Decimal(239)).times(4));
+    const piStr = piDec.toFixed(DIGITS).slice(0, DIGITS + 2); // includes "3."
 
-    // Stream π characters into grid
-    let idx = 2; // skip "3."
-    let lines = [], current = '3.';
-
-    function renderNext() {
-      if (idx < piStr.length) {
-        current += piStr[idx++];
-        if (current.length >= grid.cols) {
-          lines.push(current.slice(0, grid.cols));
-          current = current.slice(grid.cols);
-          if (lines.length > grid.rows) lines.shift();
-        }
-        digitsEl.textContent = lines.concat([current]).join('\n');
-        digitsEl.scrollTop = digitsEl.scrollHeight;
-        setTimeout(renderNext, INTERVAL);
-      }
+    // Measure character cell dimensions
+    let charWidth = 0, lineHeight = 0;
+    function measureDimensions() {
+      const comp = getComputedStyle(document.body);
+      const span = document.createElement('span');
+      span.textContent = '0';
+      span.style.visibility = 'hidden';
+      span.style.position = 'absolute';
+      span.style.fontFamily = comp.fontFamily;
+      span.style.fontSize = comp.fontSize;
+      document.body.appendChild(span);
+      const rect = span.getBoundingClientRect();
+      charWidth = rect.width;
+      lineHeight = rect.height;
+      document.body.removeChild(span);
     }
 
-    // Start streaming
-    renderNext();
+    // Compute how many columns/rows fit
+    function updateGrid() {
+      if (!charWidth || !lineHeight) measureDimensions();
+      const cols = Math.floor(window.innerWidth / charWidth);
+      const headerH = document.getElementById('header').clientHeight;
+      const rows = Math.floor((window.innerHeight - headerH) / lineHeight) - 1;
+      return { cols, rows };
+    }
+
+    const INTERVAL_MS = 50;
+    const digitsEl = document.getElementById('digits');
+    let idx = 2; // skip "3."
+    let current = '3.';
+    const lines = [];
+
+    function tick() {
+      const grid = updateGrid();
+      current += piStr[idx++] || '0';
+      // wrap full lines
+      while (current.length >= grid.cols) {
+        lines.push(current.slice(0, grid.cols));
+        current = current.slice(grid.cols);
+      }
+      // trim history
+      while (lines.length > grid.rows) lines.shift();
+      // render all lines + partial
+      digitsEl.textContent = lines.concat([current]).join('\n');
+      digitsEl.scrollTop = digitsEl.scrollHeight;
+      // continue indefinitely
+      setTimeout(tick, INTERVAL_MS);
+    }
+
+    window.addEventListener('resize', () => {
+      // on resize, re-render using new grid
+      updateGrid();
+      digitsEl.textContent = lines.concat([current]).join('\n');
+    });
+
+    // start
+    tick();
   </script>
 </body>
 </html>
+
