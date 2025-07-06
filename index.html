@@ -1,65 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Infinite Pi Digits Generator</title>
+  <meta charset="UTF-8" />
+  <title>π Terminal</title>
+  <script src="https://cdn.jsdelivr.net/npm/decimal.js@10/decimal.min.js"></script>
   <style>
-    body { font-family: monospace; background: #222; color: #0f0; padding: 2em; }
-    #digits { word-break: break-all; font-size: 1.2em; }
+    html, body { height: 100%; margin: 0; padding: 0; background: #000; }
+    body {
+      color: #00ff33;
+      font-family: 'Fira Mono', monospace;
+      display: flex; flex-direction: column; height: 100vh;
+      font-size: 2vh; line-height: 1.2;
+    }
+    #header { padding: 1vh; font-size: 2.5vh; }
+    pre#digits {
+      flex: 1; overflow: auto; white-space: pre; margin: 0; padding: 1vh;
+    }
   </style>
 </head>
 <body>
-  <h1>Pi Digits Generator</h1>
-  <div id="digits"></div>
+  <div id="header">π &gt;&gt; live Machin’s formula</div>
+  <pre id="digits">3.</pre>
   <script>
-  let q = 1n, r = 0n, t = 1n, k = 1n, n = 3n, l = 3n;
-  let started = false;
-  const digitsDiv = document.getElementById('digits');
-  let printed = 0;
-  const MAX_DIGITS_ON_SCREEN = 10000; // keep it smooth
+    // Measure character width for accurate wrapping
+    let charWidth = 0;
+    function measureCharWidth() {
+      const span = document.createElement('span');
+      span.textContent = '0';
+      span.style.font = getComputedStyle(document.body).font;
+      span.style.position = 'absolute'; span.style.visibility = 'hidden';
+      document.body.appendChild(span);
+      const w = span.getBoundingClientRect().width;
+      document.body.removeChild(span);
+      return w;
+    }
 
-  function nextDigitLoop() {
-    while (true) {
-      if (4n*q + r - t < n*t) {
-        let digit = n;
-        r = 10n * (r - n * t);
-        n = ((10n * (3n*q + r)) / t) - 10n * n;
-        q = 10n * q;
-        return digit.toString();
-      } else {
-        r = (2n*q + r)*l;
-        n = (q*(7n*k + 2n) + r*l) / (t*l);
-        q = q*k;
-        t = t*l;
-        l = l+2n;
-        k = k+1n;
+    function updateGrid() {
+      if (!charWidth) charWidth = measureCharWidth();
+      const cols = Math.floor(window.innerWidth / charWidth);
+      const headerH = document.getElementById('header').clientHeight;
+      const lineH = parseFloat(getComputedStyle(document.body).lineHeight);
+      const rows = Math.floor((window.innerHeight - headerH) / lineH) - 1;
+      return { cols, rows };
+    }
+    let grid = updateGrid();
+    window.addEventListener('resize', () => grid = updateGrid());
+
+    const DIGITS = 1000;
+    const INTERVAL = 50;
+    const digitsEl = document.getElementById('digits');
+
+    // Compute π via Machin's formula with decimal.js
+    Decimal.set({ precision: DIGITS + 10 });
+    const one = new Decimal(1);
+    const arctan = x => {
+      let term = one.div(x), sum = term;
+      let k = 1;
+      while (term.abs().gt(Decimal.pow(10, -DIGITS - 5))) {
+        term = term.neg().div(x.mul(x)).times(2 * k - 1).div(2 * k + 1);
+        sum = sum.plus(term);
+        k++;
+      }
+      return sum;
+    };
+    const piDecimal = arctan(new Decimal(5)).times(16)
+                     .minus(arctan(new Decimal(239)).times(4));
+    const piStr = piDecimal.toFixed(DIGITS).slice(0, DIGITS + 2);
+
+    // Stream π characters into grid
+    let idx = 2; // skip "3."
+    let lines = [], current = '3.';
+
+    function renderNext() {
+      if (idx < piStr.length) {
+        current += piStr[idx++];
+        if (current.length >= grid.cols) {
+          lines.push(current.slice(0, grid.cols));
+          current = current.slice(grid.cols);
+          if (lines.length > grid.rows) lines.shift();
+        }
+        digitsEl.textContent = lines.concat([current]).join('\n');
+        digitsEl.scrollTop = digitsEl.scrollHeight;
+        setTimeout(renderNext, INTERVAL);
       }
     }
-  }
 
-  function printDigitsChunk(chunkSize = 20) {
-    let chunk = '';
-    if (!started) {
-      chunk += nextDigitLoop() + '.';
-      started = true;
-      printed++;
-    }
-    for (let i = 0; i < chunkSize; i++) {
-      chunk += nextDigitLoop();
-      printed++;
-    }
-    digitsDiv.textContent += chunk;
-
-    // Keep only latest MAX_DIGITS_ON_SCREEN digits
-    if (digitsDiv.textContent.length > MAX_DIGITS_ON_SCREEN) {
-      digitsDiv.textContent = digitsDiv.textContent.slice(-MAX_DIGITS_ON_SCREEN);
-    }
-
-    setTimeout(() => printDigitsChunk(chunkSize), 50); // Give CPU a break
-  }
-
-  printDigitsChunk(20);
-</script>
+    // Start streaming
+    renderNext();
+  </script>
 </body>
 </html>
-
