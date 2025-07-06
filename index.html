@@ -12,54 +12,54 @@
   <h1>Pi Digits Generator</h1>
   <div id="digits"></div>
   <script>
-    // Pi spigot with BigInt, **NO RECURSION**
-    let q = 1n, r = 0n, t = 1n, k = 1n, n = 3n, l = 3n;
-    let started = false;
+  let q = 1n, r = 0n, t = 1n, k = 1n, n = 3n, l = 3n;
+  let started = false;
+  const digitsDiv = document.getElementById('digits');
+  let printed = 0;
+  const MAX_DIGITS_ON_SCREEN = 10000; // keep it smooth
 
-    function nextDigitLoop() {
-      while (true) {
-        if (4n*q + r - t < n*t) {
-          let digit = n;
-          r = 10n * (r - n * t);
-          n = ((10n * (3n*q + r)) / t) - 10n * n;
-          q = 10n * q;
-          return digit.toString();
-        } else {
-          r = (2n*q + r)*l;
-          n = (q*(7n*k + 2n) + r*l) / (t*l);
-          q = q*k;
-          t = t*l;
-          l = l+2n;
-          k = k+1n;
-          // No recursion! Just keep looping.
-        }
+  function nextDigitLoop() {
+    while (true) {
+      if (4n*q + r - t < n*t) {
+        let digit = n;
+        r = 10n * (r - n * t);
+        n = ((10n * (3n*q + r)) / t) - 10n * n;
+        q = 10n * q;
+        return digit.toString();
+      } else {
+        r = (2n*q + r)*l;
+        n = (q*(7n*k + 2n) + r*l) / (t*l);
+        q = q*k;
+        t = t*l;
+        l = l+2n;
+        k = k+1n;
       }
     }
+  }
 
-    // Start generating digits on load
-    const digitsDiv = document.getElementById('digits');
-    let printed = 0;
+  function printDigitsChunk(chunkSize = 20) {
+    let chunk = '';
+    if (!started) {
+      chunk += nextDigitLoop() + '.';
+      started = true;
+      printed++;
+    }
+    for (let i = 0; i < chunkSize; i++) {
+      chunk += nextDigitLoop();
+      printed++;
+    }
+    digitsDiv.textContent += chunk;
 
-    function printDigitsChunk(chunkSize = 50) {
-      let chunk = '';
-      if (!started) {
-        chunk += nextDigitLoop() + '.';
-        started = true;
-        printed++;
-      }
-      for (let i = 0; i < chunkSize; i++) {
-        chunk += nextDigitLoop();
-        printed++;
-      }
-      digitsDiv.textContent += chunk;
-
-      // Keep going forever!
-      setTimeout(() => printDigitsChunk(chunkSize), 0);
+    // Keep only latest MAX_DIGITS_ON_SCREEN digits
+    if (digitsDiv.textContent.length > MAX_DIGITS_ON_SCREEN) {
+      digitsDiv.textContent = digitsDiv.textContent.slice(-MAX_DIGITS_ON_SCREEN);
     }
 
-    // Go!
-    printDigitsChunk(50);
-  </script>
+    setTimeout(() => printDigitsChunk(chunkSize), 50); // Give CPU a break
+  }
+
+  printDigitsChunk(20);
+</script>
 </body>
 </html>
 
