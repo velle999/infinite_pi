@@ -27,26 +27,50 @@
   <div id="header">π &gt;&gt; infinite live Machin’s formula</div>
   <pre id="digits">3.</pre>
   <script>
-    // Precompute π to a string via decimal.js and Machin’s formula
-    const DIGITS = 10000;
-    Decimal.set({ precision: DIGITS + 20 });
-    const one = new Decimal(1);
-    function arctan(x) {
-      let term = one.div(x), sum = term;
-      let k = 1;
-      while (term.abs().gt(Decimal.pow(10, -DIGITS - 5))) {
-        term = term.neg().div(x.mul(x)).times(2 * k - 1).div(2 * k + 1);
-        sum = sum.plus(term);
-        k++;
+    // Configuration
+    const INITIAL_DIGITS = 1000;   // Start with 1k digits
+    const CHUNK_SIZE = 500;         // Compute 500 new digits per chunk
+    const BUFFER_THRESHOLD = 200;   // Start computing when 200 digits remain
+    const COMPUTE_INTERVAL = 50;    // ms between computation steps (to avoid UI freeze)
+    
+    // State management
+    let allDigits = "";             // All computed digits (after "3.")
+    let base = 0;                   // Digits already displayed
+    let computing = false;          // Computation lock
+    let charWidth = 0;
+    let lineHeight = 0;
+    
+    // Precompute initial digits
+    function computePiChunk(precision) {
+      Decimal.set({ precision: precision + 20 });
+      const one = new Decimal(1);
+      
+      function arctan(x) {
+        let term = one.div(x);
+        let sum = term;
+        let k = 1;
+        const threshold = Decimal.pow(10, -precision - 5);
+        
+        while (term.abs().gt(threshold)) {
+          term = term.neg()
+                    .div(x.mul(x))
+                    .times(2 * k - 1)
+                    .div(2 * k + 1);
+          sum = sum.plus(term);
+          k++;
+        }
+        return sum;
       }
-      return sum;
+      
+      const piDec = arctan(new Decimal(5)).times(16)
+                     .minus(arctan(new Decimal(239)).times(4));
+      return piDec.toFixed(precision).slice(2, precision + 2); // Only fractional part
     }
-    const piDec = arctan(new Decimal(5)).times(16)
-                   .minus(arctan(new Decimal(239)).times(4));
-    const piStr = piDec.toFixed(DIGITS).slice(0, DIGITS + 2); // includes "3."
+
+    // Compute initial chunk
+    allDigits = computePiChunk(INITIAL_DIGITS);
 
     // Measure character cell dimensions
-    let charWidth = 0, lineHeight = 0;
     function measureDimensions() {
       const comp = getComputedStyle(document.body);
       const span = document.createElement('span');
@@ -62,7 +86,7 @@
       document.body.removeChild(span);
     }
 
-    // Compute how many columns/rows fit
+    // Compute grid dimensions
     function updateGrid() {
       if (!charWidth || !lineHeight) measureDimensions();
       const cols = Math.floor(window.innerWidth / charWidth);
@@ -71,38 +95,62 @@
       return { cols, rows };
     }
 
-    const INTERVAL_MS = 50;
+    // Background computation of next chunk
+    function scheduleChunkComputation() {
+      if (computing || allDigits.length - base > BUFFER_THRESHOLD) return;
+      
+      computing = true;
+      const newPrecision = allDigits.length + CHUNK_SIZE;
+      
+      // Break computation into microtasks to avoid UI blocking
+      setTimeout(() => {
+        const newDigits = computePiChunk(newPrecision).slice(allDigits.length);
+        allDigits += newDigits;
+        computing = false;
+      }, COMPUTE_INTERVAL);
+    }
+
+    // Main display loop
     const digitsEl = document.getElementById('digits');
-    let idx = 2; // skip "3."
-    let current = '3.';
     const lines = [];
+    let current = '3.';
 
     function tick() {
       const grid = updateGrid();
-      current += piStr[idx++] || '0';
-      // wrap full lines
-      while (current.length >= grid.cols) {
+      
+      // Add next digit if available
+      if (base < allDigits.length) {
+        current += allDigits[base++];
+      }
+      
+      // Wrap full lines
+      while (current.length >= grid.cols + 2) { // +2 for "3."
         lines.push(current.slice(0, grid.cols));
         current = current.slice(grid.cols);
       }
-      // trim history
+      
+      // Trim history
       while (lines.length > grid.rows) lines.shift();
-      // render all lines + partial
+      
+      // Render
       digitsEl.textContent = lines.concat([current]).join('\n');
       digitsEl.scrollTop = digitsEl.scrollHeight;
-      // continue indefinitely
-      setTimeout(tick, INTERVAL_MS);
+      
+      // Schedule next computation if needed
+      scheduleChunkComputation();
+      
+      // Continue indefinitely
+      setTimeout(tick, 50);
     }
 
+    // Handle resize
     window.addEventListener('resize', () => {
-      // on resize, re-render using new grid
       updateGrid();
       digitsEl.textContent = lines.concat([current]).join('\n');
     });
 
-    // start
+    // Start
     tick();
   </script>
 </body>
 </html>
-
